@@ -4,10 +4,7 @@ A real-time **Arabic voice assistant for customer service**, built for *Al-Musta
 
 > مساعد صوتي ذكي باللغة العربية لخدمة العملاء: بيسمع الزبون، وبيجاوبه بالصوت من معلومات الشركة، وبيحفظ المكالمات، وبيسجّل الأسئلة اللي ما عرف يجاوبها.
 
-<!-- Screenshots: add images to docs/ and uncomment
 ![Conversation page](docs/conversation.png)
-![Call review page](docs/admin.png)
--->
 
 ## Features
 
