@@ -1,0 +1,6 @@
+# Caddy gets a free HTTPS certificate for your domain automatically.
+# The microphone only works on HTTPS pages (or on localhost).
+{$DOMAIN} {
+    encode gzip
+    reverse_proxy 127.0.0.1:7860
+}

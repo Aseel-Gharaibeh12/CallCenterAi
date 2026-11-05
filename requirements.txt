@@ -1,0 +1,2 @@
+pipecat-ai[groq,webrtc,runner,silero] @ git+https://github.com/pipecat-ai/pipecat.git
+python-dotenv

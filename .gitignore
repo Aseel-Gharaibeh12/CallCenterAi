@@ -1,0 +1,10 @@
+# Secrets - never push your API key
+.env
+# Installed packages (recreated by run.sh)
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Customer conversations - private, never push
+conversations/

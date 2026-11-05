@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>مراجعة المحادثات</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#f6f7f9; --surface:#fff; --surface-2:#f1f3f6; --border:#e4e7ec; --text:#101828; --muted:#667085;
+          --accent:#0e9384; --accent-soft:#ccfbef; --user:#6172f3; --user-soft:#eef4ff; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font-family:"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif; }
+  .app { max-width:1120px; margin:0 auto; padding:20px 16px 32px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:20px; }
+  header p { margin:2px 0 0; color:var(--muted); font-size:13px; }
+  .tools { display:flex; gap:8px; }
+  input[type=search] { border:1px solid var(--border); border-radius:12px; padding:9px 12px; font:inherit; font-size:14px; min-width:220px; background:var(--surface); }
+  button { font:inherit; cursor:pointer; border:0; border-radius:12px; padding:9px 14px; font-size:14px; font-weight:600; background:var(--surface-2); color:var(--text); }
+  .grid { display:grid; grid-template-columns: 340px 1fr; gap:20px; }
+  @media (max-width:820px){ .grid { grid-template-columns:1fr; } }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:20px; box-shadow:0 1px 2px rgba(16,24,40,.05),0 8px 24px rgba(16,24,40,.06); overflow:hidden; }
+  .list { max-height:calc(100vh - 140px); overflow-y:auto; }
+  .item { display:block; width:100%; text-align:start; border-radius:0; background:transparent; padding:14px 18px; border-bottom:1px solid var(--border); font-weight:400; }
+  .item:hover { background:var(--surface-2); }
+  .item.active { background:var(--accent-soft); }
+  .item .when { font-size:13px; font-weight:700; }
+  .item .meta { font-size:12px; color:var(--muted); margin-top:2px; }
+  .item .preview { font-size:13px; color:var(--muted); margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .detail { padding:20px; min-height:400px; }
+  .detail h2 { margin:0 0 4px; font-size:17px; }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin:10px 0 18px; }
+  .chip { background:var(--surface-2); border-radius:999px; padding:5px 12px; font-size:13px; }
+  .chip b { font-weight:700; }
+  .msgs { display:flex; flex-direction:column; gap:12px; }
+  .msg { max-width:85%; display:flex; flex-direction:column; gap:4px; }
+  .msg .who { font-size:12px; color:var(--muted); font-weight:600; padding:0 4px; }
+  .msg .bubble { padding:10px 14px; border-radius:16px; font-size:15px; line-height:1.65; white-space:pre-wrap; }
+  .msg.user { align-self:flex-start; } .msg.user .bubble { background:var(--user-soft); color:#1f2a6b; }
+  .msg.assistant { align-self:flex-end; } .msg.assistant .who { text-align:end; } .msg.assistant .bubble { background:var(--surface-2); }
+  .empty { color:var(--muted); text-align:center; padding:40px 16px; font-size:14px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div>
+      <h1>مراجعة المحادثات</h1>
+      <p>كل المكالمات اللي صارت مع المساعد الصوتي</p>
+    </div>
+    <div class="tools">
+      <input type="search" id="q" placeholder="ابحث بالمحادثات…">
+      <button id="refresh" type="button">تحديث</button>
+    </div>
+  </header>
+  <div class="grid">
+    <div class="card list" id="list"><div class="empty">جارٍ التحميل…</div></div>
+    <div class="card detail" id="detail"><div class="empty">اختر محادثة من القائمة لعرضها.</div></div>
+  </div>
+</div>
+<script>
+(() => {
+  const listEl = document.getElementById("list"), detailEl = document.getElementById("detail"), q = document.getElementById("q");
+  let all = [], activeId = null;
+  const fmt = (iso) => { try { return new Date(iso).toLocaleString("ar-JO", { dateStyle: "medium", timeStyle: "short" }); } catch (e) { return iso; } };
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+  async function load() {
+    try {
+      const r = await fetch("/admin/api/conversations", { cache: "no-store" });
+      all = await r.json();
+    } catch (e) { all = []; }
+    render();
+  }
+  function render() {
+    const term = q.value.trim();
+    const rows = all.filter((c) => !term || (c.search || "").includes(term));
+    listEl.innerHTML = "";
+    if (!rows.length) { listEl.appendChild(el("div", "empty", all.length ? "ما في نتائج." : "لسا ما في محادثات محفوظة.")); return; }
+    rows.forEach((c) => {
+      const b = el("button", "item" + (c.id === activeId ? " active" : ""));
+      b.type = "button";
+      b.appendChild(el("div", "when", fmt(c.started_at)));
+      b.appendChild(el("div", "meta", `${c.turns} رسالة · ${c.duration_min} دقيقة` + (c.phone ? ` · ${c.phone}` : "")));
+      b.appendChild(el("div", "preview", c.preview || "—"));
+      b.dir = "rtl";
+      b.onclick = () => open(c.id);
+      listEl.appendChild(b);
+    });
+  }
+  async function open(id) {
+    activeId = id; render();
+    detailEl.innerHTML = "";
+    let c;
+    try { c = await (await fetch("/admin/api/conversations/" + encodeURIComponent(id), { cache: "no-store" })).json(); }
+    catch (e) { detailEl.appendChild(el("div", "empty", "تعذّر فتح المحادثة.")); return; }
+    detailEl.appendChild(el("h2", null, fmt(c.started_at)));
+    const chips = el("div", "chips");
+    const chip = (k, v) => { const s = el("span", "chip"); s.appendChild(el("b", null, k + ": ")); s.appendChild(document.createTextNode(v)); chips.appendChild(s); };
+    chip("المدة", c.duration_min + " دقيقة");
+    chip("عدد الرسائل", String(c.messages.length));
+    if (c.phone) chip("رقم الزبون", c.phone);
+    detailEl.appendChild(chips);
+    const msgs = el("div", "msgs");
+    c.messages.forEach((m) => {
+      const w = el("div", "msg " + m.role);
+      w.appendChild(el("div", "who", m.role === "user" ? "الزبون" : "المساعد"));
+      const bub = el("div", "bubble", m.text); bub.dir = "auto";
+      w.appendChild(bub); msgs.appendChild(w);
+    });
+    if (!c.messages.length) msgs.appendChild(el("div", "empty", "المحادثة فاضية."));
+    detailEl.appendChild(msgs);
+  }
+  q.addEventListener("input", render);
+  document.getElementById("refresh").onclick = load;
+  load();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,34 @@
+# Start everything:  docker compose up -d --build
+# See the logs:      docker compose logs -f bot
+# Stop everything:   docker compose down
+
+services:
+  bot:
+    build: .
+    container_name: almustaqbal-bot
+    restart: unless-stopped
+    # Host networking lets the live voice connection (WebRTC) reach the bot directly.
+    network_mode: host
+    env_file: .env
+    # Only Caddy (below) is reachable from the internet; it adds HTTPS.
+    command: ["python", "bot.py", "--host", "127.0.0.1", "--port", "7860"]
+    volumes:
+      - ./conversations:/app/conversations        # saved calls stay on the server
+      - ./company_info.txt:/app/company_info.txt:ro  # edit, then: docker compose restart bot
+      - ./ui:/app/ui:ro                           # edit the pages without rebuilding
+
+  caddy:
+    image: caddy:2
+    container_name: almustaqbal-https
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - DOMAIN=${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
